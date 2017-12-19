@@ -22,10 +22,11 @@ public class DefaultAbsApiState implements AbsApiState {
     public DefaultAbsApiState(boolean isTest) {
         HashMap<Integer, String> initialTestDc = new HashMap<>();
         HashMap<Integer, String> initialProductionDc = new HashMap<>();
-        initialTestDc.put(this.primaryDc, "149.154.167.40:443");
-        initialProductionDc.put(this.primaryDc, "149.154.167.50:443");
+        initialTestDc.put(3, "149.154.175.117:443");
+        initialProductionDc.put(2, "149.154.167.50:443");
 
         HashMap<Integer, String> knownDcMap = isTest ? initialTestDc : initialProductionDc;
+        this.primaryDc = knownDcMap.entrySet().iterator().next().getKey();
         knownDCs = new int[knownDcMap.size()];
         String[] addressAndPort;
         int index = 0;
