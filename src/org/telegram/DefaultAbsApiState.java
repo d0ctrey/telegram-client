@@ -1,14 +1,5 @@
 package org.telegram;
 
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.HashMap;
-
-import com.sun.org.apache.xml.internal.security.exceptions.Base64DecodingException;
-import com.sun.org.apache.xml.internal.security.utils.Base64;
 import org.telegram.api.TLConfig;
 import org.telegram.api.TLDcOption;
 import org.telegram.api.engine.storage.AbsApiState;
@@ -16,19 +7,42 @@ import org.telegram.mtproto.state.AbsMTProtoState;
 import org.telegram.mtproto.state.ConnectionInfo;
 import org.telegram.mtproto.state.KnownSalt;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 public class DefaultAbsApiState implements AbsApiState {
 
     private HashMap<Integer, ConnectionInfo[]> connections = new HashMap<Integer, ConnectionInfo[]>();
     private HashMap<Integer, byte[]> keys = new HashMap<Integer, byte[]>();
     private HashMap<Integer, Boolean> isAuth = new HashMap<Integer, Boolean>();
+    private int[] knownDCs;
+    private int primaryDc = 2;
 
-    private int primaryDc = 1;
+    public DefaultAbsApiState(boolean isTest) {
+        HashMap<Integer, String> initialTestDc = new HashMap<>();
+        HashMap<Integer, String> initialProductionDc = new HashMap<>();
+        initialTestDc.put(this.primaryDc, "149.154.167.40:443");
+        initialProductionDc.put(this.primaryDc, "149.154.167.50:443");
 
-    public DefaultAbsApiState() {
-        connections.put(1, new ConnectionInfo[]{
-//                new ConnectionInfo(1, 0, "149.154.167.40", 443) // Test
-                new ConnectionInfo(1, 0, "149.154.167.50", 443) // Production
-        });
+        HashMap<Integer, String> knownDcMap = isTest ? initialTestDc : initialProductionDc;
+        knownDCs = new int[knownDcMap.size()];
+        String[] addressAndPort;
+        int index = 0;
+        for(Map.Entry<Integer, String> dc : knownDcMap.entrySet()) {
+            addressAndPort = dc.getValue().split(":");
+            connections.put(dc.getKey(), new ConnectionInfo[]{
+                    new ConnectionInfo(1, 0, addressAndPort[0], Integer.valueOf(addressAndPort[1]))
+            });
+            knownDCs[index] = dc.getKey();
+            index++;
+        }
+
+
+    }
+
+    public int[] getKnownDCs() {
+        return knownDCs;
     }
 
     @Override
@@ -122,8 +136,12 @@ public class DefaultAbsApiState implements AbsApiState {
             tConnections.get(option.getId()).add(new ConnectionInfo(id++, 0, option.getIpAddress(), option.getPort()));
         }
 
+        knownDCs = new int[tConnections.size()];
+        int index = 0;
         for (Integer dc : tConnections.keySet()) {
             connections.put(dc, tConnections.get(dc).toArray(new ConnectionInfo[0]));
+            knownDCs[index] = dc;
+            index++;
         }
     }
 
