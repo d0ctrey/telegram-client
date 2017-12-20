@@ -1,18 +1,18 @@
 package org.telegram;
 
-import org.telegram.api.*;
+import org.telegram.api.TLAbsUpdates;
+import org.telegram.api.TLConfig;
+import org.telegram.api.TLInputPeerSelf;
+import org.telegram.api.TLNearestDc;
 import org.telegram.api.auth.TLAuthorization;
-import org.telegram.api.auth.TLCheckedPhone;
 import org.telegram.api.auth.TLSentCode;
 import org.telegram.api.engine.ApiCallback;
 import org.telegram.api.engine.AppInfo;
 import org.telegram.api.engine.TelegramApi;
-import org.telegram.api.messages.TLAbsDialogs;
 import org.telegram.api.messages.TLAbsSentMessage;
 import org.telegram.api.requests.*;
 import org.telegram.tl.TLMethod;
 import org.telegram.tl.TLObject;
-import org.telegram.tl.TLVector;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,12 +24,12 @@ public class TelegramClient {
     private static final String API_HASH = "cbf75f71f7b931f7d137a60d318590dd";
     private static final String PHONE_NUMBER = "+989123106718";
     private static final int myId = 106549455;
-//    private static final String HASH = "f593011df04fb04285";
+    //    private static final String HASH = "f593011df04fb04285";
     private static final String HASH = "b3007393d6b530021c";
     private static byte[] key;
 
     public static void main(String[] args) {
-        DefaultAbsApiState state = new DefaultAbsApiState(true);
+        DefaultAbsApiState state = new DefaultAbsApiState(false);
         final TelegramApi api = new TelegramApi(state, new AppInfo(API_ID,
                 "Test Client", "0.0.1", "0.0.1", "en"), new ApiCallback() {
 
@@ -54,24 +54,22 @@ public class TelegramClient {
         state.updateSettings(config);
         api.resetConnectionInfo();
 
-        TLCheckedPhone checkedPhone = doRpc(api, new TLRequestAuthCheckPhone(PHONE_NUMBER), false);
+        TLNearestDc tlNearestDc = doRpc(api, new TLRequestHelpGetNearestDc(), false);
+        switchToDc(api, tlNearestDc.getNearestDc());
 
 //        if (checkedPhone == null)
 //            throw new RuntimeException();
 
 //        String hash = HASH;
 //        if("".equals(HASH))
-        if(key != null) {
-            state.putAuthKey(state.getPrimaryDc(), key);
-        } else {
+        if (key == null) {
             TLAuthorization authorization = handleRegistration(api);
+//            api.getState().setAuthenticated(api.getState().getPrimaryDc(), true);
             key = state.getAuthKey(state.getPrimaryDc());
         }
 
-        TLVector<TLAbsInputUser> tlAbsInputUsers = new TLVector<>();
-
-        TLAbsDialogs tlAbsDialogs = doRpc(api, new TLRequestContactsGetContacts(), true);
-        System.out.println(tlAbsDialogs.getChats().toString());
+        TLAbsSentMessage tlAbsSentMessage = doRpc(api, new TLRequestMessagesSendMessage(new TLInputPeerSelf(), "Wizzo F baby?", 123123123), true);
+        System.out.println(tlAbsSentMessage.getDate());
     }
 
     private static TLAuthorization handleRegistration(TelegramApi api) {
@@ -110,34 +108,29 @@ public class TelegramClient {
         T tlObject = null;
         try {
             if (!authorizationRequired) {
-                tlObject = api.doRpcCallNonAuth(tlMethod);
+                return api.doRpcCallNonAuth(tlMethod);
             } else {
-                tlObject = api.doRpcCall(tlMethod);
+                return api.doRpcCall(tlMethod);
             }
         } catch (IOException e) {
-            int[] knownDcs = state.getKnownDCs();
-            for (int i = 0; i < knownDcs.length; i++) {
-                if(knownDcs[i] == state.getPrimaryDc())
-                    continue;
-                try {
-                    api.switchToDc(knownDcs[i]);
-                } catch (Exception e1) {
-//                    api.switchToDc(knownDcs[i]);
-                }
-                try {
-                    if (!authorizationRequired) {
-                        tlObject = api.doRpcCallNonAuth(tlMethod);
-                    } else {
-                        tlObject = api.doRpcCall(tlMethod);
-                    }
-                    break;
-                } catch (IOException e1) {
-
-                }
+            e.printStackTrace();
+            try {
+                Thread.sleep(20000);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
             }
+            // call till success
+            return doRpc(api, tlMethod, authorizationRequired);
         }
-
-        return tlObject;
     }
 
+
+    private static void switchToDc(TelegramApi api, int dc) {
+        try {
+            api.switchToDc(dc);
+        } catch (Exception e) {
+            e.printStackTrace();
+            switchToDc(api, dc);
+        }
+    }
 }
