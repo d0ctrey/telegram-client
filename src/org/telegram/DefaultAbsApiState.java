@@ -17,7 +17,7 @@ public class DefaultAbsApiState implements AbsApiState {
     private HashMap<Integer, byte[]> keys = new HashMap<Integer, byte[]>();
     private HashMap<Integer, Boolean> isAuth = new HashMap<Integer, Boolean>();
     private int[] knownDCs;
-    private int primaryDc = 2;
+    private int primaryDc;
 
     public DefaultAbsApiState(boolean isTest) {
         HashMap<Integer, String> initialTestDc = new HashMap<>();
@@ -38,6 +38,8 @@ public class DefaultAbsApiState implements AbsApiState {
             knownDCs[index] = dc.getKey();
             index++;
         }
+
+
 
 
     }
