@@ -16,17 +16,17 @@ public class DefaultAbsApiState implements AbsApiState {
     private HashMap<Integer, ConnectionInfo[]> connections = new HashMap<Integer, ConnectionInfo[]>();
     private HashMap<Integer, byte[]> keys = new HashMap<Integer, byte[]>();
     private HashMap<Integer, Boolean> isAuth = new HashMap<Integer, Boolean>();
-    private int[] knownDCs;
     private int primaryDc;
+    private int[] knownDCs;
 
     public DefaultAbsApiState(boolean isTest) {
-        HashMap<Integer, String> initialTestDc = new HashMap<>();
-        HashMap<Integer, String> initialProductionDc = new HashMap<>();
-        initialTestDc.put(3, "149.154.175.117:443");
-        initialProductionDc.put(2, "149.154.167.50:443");
+        HashMap<Integer, String> initialTestConnections = new HashMap<>();
+        HashMap<Integer, String> initialProductionConnections = new HashMap<>();
+        initialTestConnections.put(3, "149.154.175.117:443");
+        initialProductionConnections.put(2, "149.154.167.50:443");
 
-        HashMap<Integer, String> knownDcMap = isTest ? initialTestDc : initialProductionDc;
-        this.primaryDc = knownDcMap.entrySet().iterator().next().getKey();
+        HashMap<Integer, String> knownDcMap = isTest ? initialTestConnections : initialProductionConnections;
+        primaryDc = knownDcMap.entrySet().iterator().next().getKey();
         knownDCs = new int[knownDcMap.size()];
         String[] addressAndPort;
         int index = 0;
@@ -38,10 +38,12 @@ public class DefaultAbsApiState implements AbsApiState {
             knownDCs[index] = dc.getKey();
             index++;
         }
+    }
 
-
-
-
+    public DefaultAbsApiState(int dc, ConnectionInfo connection) {
+        primaryDc = dc;
+        knownDCs = new int[] {dc};
+        connections.put(dc, new ConnectionInfo[]{connection});
     }
 
     public int[] getKnownDCs() {
