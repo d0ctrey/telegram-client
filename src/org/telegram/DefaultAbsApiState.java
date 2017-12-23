@@ -3,21 +3,26 @@ package org.telegram;
 import org.telegram.api.TLConfig;
 import org.telegram.api.TLDcOption;
 import org.telegram.api.engine.storage.AbsApiState;
+import org.telegram.api.updates.TLState;
 import org.telegram.mtproto.state.AbsMTProtoState;
 import org.telegram.mtproto.state.ConnectionInfo;
 import org.telegram.mtproto.state.KnownSalt;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DefaultAbsApiState implements AbsApiState {
+public class DefaultAbsApiState implements AbsApiState, Serializable {
 
-    private HashMap<Integer, ConnectionInfo[]> connections = new HashMap<Integer, ConnectionInfo[]>();
-    private HashMap<Integer, byte[]> keys = new HashMap<Integer, byte[]>();
-    private HashMap<Integer, Boolean> isAuth = new HashMap<Integer, Boolean>();
+    private static final long serialVersionUID = 1L;
+
+    private HashMap<Integer, SerializableConnectionInfo[]> connections = new HashMap<>();
+    private HashMap<Integer, byte[]> keys = new HashMap<>();
+    private HashMap<Integer, Boolean> isAuth = new HashMap<>();
     private int primaryDc;
-    private int[] knownDCs;
+
+    private TLState tlState;
 
     public DefaultAbsApiState(boolean isTest) {
         HashMap<Integer, String> initialTestConnections = new HashMap<>();
@@ -27,27 +32,13 @@ public class DefaultAbsApiState implements AbsApiState {
 
         HashMap<Integer, String> knownDcMap = isTest ? initialTestConnections : initialProductionConnections;
         primaryDc = knownDcMap.entrySet().iterator().next().getKey();
-        knownDCs = new int[knownDcMap.size()];
         String[] addressAndPort;
-        int index = 0;
         for(Map.Entry<Integer, String> dc : knownDcMap.entrySet()) {
             addressAndPort = dc.getValue().split(":");
-            connections.put(dc.getKey(), new ConnectionInfo[]{
-                    new ConnectionInfo(1, 0, addressAndPort[0], Integer.valueOf(addressAndPort[1]))
+            connections.put(dc.getKey(), new SerializableConnectionInfo[]{
+                    new SerializableConnectionInfo(1, 0, addressAndPort[0], Integer.valueOf(addressAndPort[1]))
             });
-            knownDCs[index] = dc.getKey();
-            index++;
         }
-    }
-
-    public DefaultAbsApiState(int dc, ConnectionInfo connection) {
-        primaryDc = dc;
-        knownDCs = new int[] {dc};
-        connections.put(dc, new ConnectionInfo[]{connection});
-    }
-
-    public int[] getKnownDCs() {
-        return knownDCs;
     }
 
     @Override
@@ -132,22 +123,25 @@ public class DefaultAbsApiState implements AbsApiState {
     @Override
     public void updateSettings(TLConfig config) {
         connections.clear();
-        HashMap<Integer, ArrayList<ConnectionInfo>> tConnections = new HashMap<Integer, ArrayList<ConnectionInfo>>();
+        HashMap<Integer, ArrayList<SerializableConnectionInfo>> tConnections = new HashMap<>();
         int id = 1;
         for (TLDcOption option : config.getDcOptions()) {
             if (!tConnections.containsKey(option.getId())) {
-                tConnections.put(option.getId(), new ArrayList<ConnectionInfo>());
+                tConnections.put(option.getId(), new ArrayList<>());
             }
-            tConnections.get(option.getId()).add(new ConnectionInfo(id++, 0, option.getIpAddress(), option.getPort()));
+            tConnections.get(option.getId()).add(new SerializableConnectionInfo(id++, 0, option.getIpAddress(), option.getPort()));
         }
 
-        knownDCs = new int[tConnections.size()];
-        int index = 0;
         for (Integer dc : tConnections.keySet()) {
-            connections.put(dc, tConnections.get(dc).toArray(new ConnectionInfo[0]));
-            knownDCs[index] = dc;
-            index++;
+            connections.put(dc, tConnections.get(dc).toArray(new SerializableConnectionInfo[0]));
         }
     }
 
+    public TLState getTlState() {
+        return tlState;
+    }
+
+    public void setTlState(TLState tlState) {
+        this.tlState = tlState;
+    }
 }

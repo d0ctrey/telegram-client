@@ -1,12 +1,17 @@
 package org.telegram.mtproto.state;
 
+import java.io.Serializable;
+
 /**
  * Created with IntelliJ IDEA.
  * User: ex3ndr
  * Date: 07.11.13
  * Time: 7:26
  */
-public class ConnectionInfo {
+public class ConnectionInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private int id;
     private int priority;
     private String address;
