@@ -1,5 +1,7 @@
 package org.telegram.actors.log;
 
+import java.util.Date;
+
 /**
  * Created by ex3ndr on 03.04.14.
  */
@@ -15,7 +17,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.w(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [WARNING]: " + tag + ":" + message);
         }
     }
 
@@ -23,7 +25,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.d(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [DEBUG]: " + tag + ":" + message);
         }
     }
 

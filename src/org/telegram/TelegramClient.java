@@ -1,6 +1,8 @@
 package org.telegram;
 
-import org.telegram.api.*;
+import org.telegram.api.TLAbsUpdates;
+import org.telegram.api.TLConfig;
+import org.telegram.api.TLNearestDc;
 import org.telegram.api.auth.TLAuthorization;
 import org.telegram.api.auth.TLSentCode;
 import org.telegram.api.engine.ApiCallback;
@@ -8,23 +10,44 @@ import org.telegram.api.engine.AppInfo;
 import org.telegram.api.engine.RpcException;
 import org.telegram.api.engine.TelegramApi;
 import org.telegram.api.engine.storage.AbsApiState;
-import org.telegram.api.messages.TLAbsSentMessage;
-import org.telegram.api.messages.TLAffectedHistory;
 import org.telegram.api.requests.*;
-import org.telegram.api.updates.TLAbsDifference;
 import org.telegram.api.updates.TLState;
+import org.telegram.handler.TLAbsUpdatesHandler;
+import org.telegram.handler.TLUpdateShortHandler;
+import org.telegram.handler.TLUpdatesHandler;
+import org.telegram.handler.TLUpdatesTooLongHandler;
 import org.telegram.tl.TLMethod;
 import org.telegram.tl.TLObject;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class TelegramClient {
 
-    private static TelegramApi api;
+    static TelegramApi api;
+    static List<TLAbsUpdatesHandler> updatesHandlers = new ArrayList<>();
+
     private static final int API_ID = 33986;
     private static final String API_HASH = "cbf75f71f7b931f7d137a60d318590dd";
     private static final String PHONE_NUMBER = "+989123106718";
+
+    public static class DefaultApiCallback implements ApiCallback {
+
+        @Override
+        public void onUpdatesInvalidated(TelegramApi _api) {
+        }
+
+        @Override
+        public void onAuthCancelled(TelegramApi _api) {
+        }
+
+        @Override
+        public void onUpdate(TLAbsUpdates updates) {
+            processUpdates(updates);
+        }
+    }
 
     public static void main(String[] args) {
         DefaultAbsApiState apiState;
@@ -36,50 +59,8 @@ public class TelegramClient {
             apiState = new DefaultAbsApiState(false);
         }
 
-        DefaultAbsApiState finalApiState = apiState;
         api = new TelegramApi(apiState, new AppInfo(API_ID,
-                "Test Client", "0.0.1", "0.0.1", "en"), new ApiCallback() {
-
-            @Override
-            public void onUpdatesInvalidated(TelegramApi _api) {
-                System.out.println(_api);
-            }
-
-            @Override
-            public void onAuthCancelled(TelegramApi _api) {
-                System.out.println(_api);
-            }
-
-            @Override
-            public void onUpdate(TLAbsUpdates updates) {
-                TLState tlState = finalApiState.getTlState();
-                if(updates instanceof TLUpdateShortMessage) {
-                    TLUpdateShortMessage shortMessage = (TLUpdateShortMessage) updates;
-                    TLAbsSentMessage tlAbsSentMessage = doRpc(new TLRequestMessagesSendMessage(new TLInputPeerContact(shortMessage.getFromId()), "Don't text me asshole.", generateRandomId()), true);
-                    System.out.println(tlAbsSentMessage);
-                } else if(updates instanceof TLUpdatesTooLong) {
-                    TLAbsDifference tlAbsDifference = doRpc(new TLRequestUpdatesGetDifference(tlState.getPts(), tlState.getDate(), tlState.getQts()), true);
-                    System.out.println(tlAbsDifference);
-                } else if(updates instanceof TLUpdates) {
-                    TLUpdates tlUpdates = (TLUpdates) updates;
-                    for(TLAbsUpdate tlUpdate : tlUpdates.getUpdates()) {
-                        if(tlUpdate instanceof TLUpdateNewMessage) {
-                            TLUpdateNewMessage tlUpdateNewMessage = (TLUpdateNewMessage) tlUpdate;
-                            int userId = 0;
-                            if(tlUpdateNewMessage.getMessage() instanceof TLMessage) {
-                                userId = ((TLMessage) tlUpdateNewMessage.getMessage()).getFromId();
-                            } else if(tlUpdateNewMessage.getMessage() instanceof TLMessageForwarded) {
-                                userId = ((TLMessageForwarded) tlUpdateNewMessage.getMessage()).getFromId();
-                            }
-                            TLAffectedHistory tlAffectedHistory = doRpc(new TLRequestMessagesReadHistory(new TLInputPeerContact(userId), tlUpdateNewMessage.getMessage().getId(), 0), true);
-                            System.out.println(tlAffectedHistory);
-                        }
-
-                    }
-
-                }
-            }
-        });
+                "Test Client", "0.0.1", "0.0.1", "en"), new DefaultApiCallback());
 
         if (!stateLoaded) {
             TLConfig config = doRpc(new TLRequestHelpGetConfig(), false);
@@ -91,6 +72,9 @@ public class TelegramClient {
 
             TLAuthorization authorization = handleRegistration();
             api.getState().setAuthenticated(api.getState().getPrimaryDc(), true);
+
+            TLState tlState = doRpc(new TLRequestUpdatesGetState(), true);
+            apiState.setTlState(tlState);
             try {
                 saveState(apiState);
             } catch (IOException e) {
@@ -98,9 +82,16 @@ public class TelegramClient {
             }
         }
 
-        TLState tlState = doRpc(new TLRequestUpdatesGetState(), true);
-        apiState.setTlState(tlState);
+        updatesHandlers.add(new TLUpdatesHandler(api));
+        updatesHandlers.add(new TLUpdateShortHandler(api));
+        updatesHandlers.add(new TLUpdatesTooLongHandler(api));
+    }
 
+    private static void processUpdates(TLAbsUpdates updates) {
+        for(TLAbsUpdatesHandler updatesHandler : updatesHandlers) {
+            if(updatesHandler.canProcess(updates.getClassId()))
+                updatesHandler.processUpdates(updates);
+        }
     }
 
     private static void saveState(AbsApiState apiState) throws IOException {
@@ -164,7 +155,6 @@ public class TelegramClient {
     }
 
     private static <T extends TLObject> T doRpc(TLMethod<T> tlMethod, boolean authorizationRequired) {
-        DefaultAbsApiState state = (DefaultAbsApiState) api.getState();
         try {
             if (!authorizationRequired) {
                 return api.doRpcCallNonAuth(tlMethod);

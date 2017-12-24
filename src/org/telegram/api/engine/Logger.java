@@ -1,5 +1,7 @@
 package org.telegram.api.engine;
 
+import java.util.Date;
+
 /**
  * Created with IntelliJ IDEA.
  * User: ex3ndr
@@ -17,7 +19,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.w(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [WARNING]: " + tag + ":" + message);
         }
     }
 
@@ -25,7 +27,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.d(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [DEBUG]: " + tag + ":" + message);
         }
     }
 

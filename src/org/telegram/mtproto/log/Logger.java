@@ -1,5 +1,7 @@
 package org.telegram.mtproto.log;
 
+import java.util.Date;
+
 /**
  * Created with IntelliJ IDEA.
  * User: ex3ndr
@@ -8,7 +10,7 @@ package org.telegram.mtproto.log;
  */
 public class Logger {
 
-    public static final boolean LOG_THREADS = false;
+    public static final boolean LOG_THREADS = true;
     public static final boolean LOG_IGNORED = true;
     public static final boolean LOG_PING = true;
 
@@ -22,7 +24,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.w(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [WARNING]: " + tag + ":" + message);
         }
     }
 
@@ -30,7 +32,7 @@ public class Logger {
         if (logInterface != null) {
             logInterface.d(tag, message);
         } else {
-            System.out.println(tag + ":" + message);
+            System.out.println(new Date() + " (" + Thread.currentThread().getName() + ") [DEBUG]: " + tag + ":" + message);
         }
     }
 
