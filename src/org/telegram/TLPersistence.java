@@ -1,8 +1,6 @@
 package org.telegram;
 
 import org.telegram.api.engine.Logger;
-import org.telegram.api.engine.storage.AbsApiState;
-import org.telegram.tl.TLContext;
 import org.telegram.tl.TLObject;
 
 import java.io.*;
@@ -18,15 +16,16 @@ public class TLPersistence<T extends TLObject> {
     private static final String TAG = "KernelPersistence";
 
     private Class<T> destClass;
+    private String path;
     private T obj;
 
-    public TLPersistence(String fileName, Class<T> destClass) {
-        this.destClass = destClass;
 
+    public TLPersistence(String path, String fileName, Class<T> destClass) {
+        this.destClass = destClass;
+        this.path = path;
         long start = System.currentTimeMillis();
         Logger.d(TAG, "Loaded state in " + (System.currentTimeMillis() - start) + " ms");
         obj = loadData(fileName);
-
         if (obj == null) {
             try {
                 obj = destClass.newInstance();
@@ -45,7 +44,7 @@ public class TLPersistence<T extends TLObject> {
     public T loadData(String fileName) {
         FileInputStream inputStream = null;
         try {
-            inputStream = new FileInputStream(System.getProperty("user.home") + "/.telegram/security/" + fileName);
+            inputStream = new FileInputStream(System.getProperty("user.home") + "/.telegram/" + path + "/security/" + fileName);
             ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
             return (T) objectInputStream.readObject();
         } catch (IOException | ClassNotFoundException e) {
@@ -65,7 +64,7 @@ public class TLPersistence<T extends TLObject> {
     public void write(String fileName) {
         FileOutputStream outputStream = null;
         try {
-            File stateFile = new File(System.getProperty("user.home") + "/.telegram/security", fileName);
+            File stateFile = new File(System.getProperty("user.home") + "/.telegram/" + path + "/security", fileName);
             if(!stateFile.exists()) {
                 stateFile.getParentFile().mkdirs();
                 stateFile.createNewFile();

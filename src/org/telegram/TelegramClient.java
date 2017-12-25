@@ -2,15 +2,13 @@ package org.telegram;
 
 import org.telegram.api.TLAbsUpdates;
 import org.telegram.api.TLConfig;
+import org.telegram.api.TLInputPeerNotifyEventsAll;
 import org.telegram.api.TLNearestDc;
 import org.telegram.api.auth.TLAuthorization;
 import org.telegram.api.auth.TLSentCode;
-import org.telegram.api.engine.ApiCallback;
-import org.telegram.api.engine.AppInfo;
-import org.telegram.api.engine.RpcException;
-import org.telegram.api.engine.TelegramApi;
-import org.telegram.api.engine.storage.AbsApiState;
+import org.telegram.api.engine.*;
 import org.telegram.api.requests.*;
+import org.telegram.api.updates.TLAbsDifference;
 import org.telegram.api.updates.TLState;
 import org.telegram.handler.TLAbsUpdatesHandler;
 import org.telegram.handler.TLUpdateShortHandler;
@@ -19,10 +17,15 @@ import org.telegram.handler.TLUpdatesTooLongHandler;
 import org.telegram.tl.TLMethod;
 import org.telegram.tl.TLObject;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class TelegramClient {
 
@@ -32,6 +35,8 @@ public class TelegramClient {
     private static final int API_ID = 33986;
     private static final String API_HASH = "cbf75f71f7b931f7d137a60d318590dd";
     private static final String PHONE_NUMBER = "+989123106718";
+
+    private static ScheduledExecutorService executorService;
 
     public static class DefaultApiCallback implements ApiCallback {
 
@@ -50,9 +55,9 @@ public class TelegramClient {
     }
 
     public static void main(String[] args) {
-        ApiStorage apiStorage = new ApiStorage();
+        ApiStorage apiStorage = new ApiStorage(PHONE_NUMBER.replaceAll("\\+", ""));
         api = new TelegramApi(apiStorage, new AppInfo(API_ID,
-                "MacBook Pro", "macOS Sierra 10.12", "0.0.1", "en"), new DefaultApiCallback());
+                System.getenv("TL_DEVICE_MODEL"), System.getenv("TL_DEVICE_VERSION"), "0.0.1", "en"), new DefaultApiCallback());
 
         if (!apiStorage.isAuthenticated()) {
             TLConfig config = doRpc(new TLRequestHelpGetConfig(), false);
@@ -68,8 +73,8 @@ public class TelegramClient {
 
         }
 
-        ApiState apiState = new ApiState();
-        if(apiState.getObj().getDate() == 0) {
+        ApiState apiState = new ApiState(PHONE_NUMBER.replaceAll("\\+", ""));
+        if (apiState.getObj().getDate() == 0) {
             try {
                 TLState tlState = api.doRpcCall(new TLRequestUpdatesGetState());
                 apiState.updateState(tlState);
@@ -82,11 +87,29 @@ public class TelegramClient {
         updatesHandlers.add(new TLUpdatesHandler(api));
         updatesHandlers.add(new TLUpdateShortHandler(api));
         updatesHandlers.add(new TLUpdatesTooLongHandler(api));
+
+        executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.scheduleAtFixedRate(() -> api.doRpcCall(new TLRequestAccountGetNotifySettings(), new RpcCallbackEx<T>() {
+            @Override
+            public void onConfirmed() {
+
+            }
+
+            @Override
+            public void onResult(T result) {
+
+            }
+
+            @Override
+            public void onError(int errorCode, String message) {
+
+            }
+        }), 5, 5, TimeUnit.SECONDS);
     }
 
     private static void processUpdates(TLAbsUpdates updates) {
-        for(TLAbsUpdatesHandler updatesHandler : updatesHandlers) {
-            if(updatesHandler.canProcess(updates.getClassId()))
+        for (TLAbsUpdatesHandler updatesHandler : updatesHandlers) {
+            if (updatesHandler.canProcess(updates.getClassId()))
                 updatesHandler.processUpdates(updates);
         }
     }
@@ -131,10 +154,10 @@ public class TelegramClient {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            if(e instanceof RpcException) {
+            if (e instanceof RpcException) {
                 int errorCode = ((RpcException) e).getErrorCode();
                 String errorTag = ((RpcException) e).getErrorTag();
-                if(errorCode == 303) {
+                if (errorCode == 303) {
                     String dcToSwitch = errorTag.substring(errorTag.length() - 1);
                     switchToDc(Integer.valueOf(dcToSwitch));
                 }

@@ -54,7 +54,7 @@ public class TLAbsUpdatesUserStatusHandler implements TLAbsUpdateHandler {
             @Override
             public void onResult(TLUserFull result) {
                 if(result.getUser() instanceof TLUserContact)
-                    System.out.println(((TLUserContact) result.getUser()).getFirstName() + " " + ((TLUserContact) result.getUser()).getLastName() + " is " + finalStatusString + " ================================");
+                    System.out.println("### " + ((TLUserContact) result.getUser()).getFirstName() + " " + ((TLUserContact) result.getUser()).getLastName() + " is " + finalStatusString + " ###");
             }
 
             @Override

@@ -5,9 +5,7 @@ import org.telegram.api.engine.RpcCallbackEx;
 import org.telegram.api.engine.TelegramApi;
 import org.telegram.api.messages.TLAffectedHistory;
 import org.telegram.api.requests.TLRequestMessagesReadHistory;
-import org.telegram.handler.TLUpdatesTooLongHandler;
 
-import java.io.IOException;
 import java.util.logging.Logger;
 
 /**
@@ -24,20 +22,36 @@ public class MessageManager {
     }
 
     public void markAsRead(TLAbsMessage absMessage) {
-        int userId = 0;
+        TLAbsInputPeer absInputPeer = null;
         if (absMessage instanceof TLMessage) {
-            userId = ((TLMessage) absMessage).getFromId();
+            TLMessage message = (TLMessage) absMessage;
+            if(message.getToId() instanceof TLPeerUser)
+                return;
+//                absInputPeer = new TLInputPeerContact(message.getFromId());
+            else if(message.getToId() instanceof TLPeerChat) {
+                if(((TLPeerChat) message.getToId()).getChatId() != 240638145)
+                    return;
+                absInputPeer = new TLInputPeerChat(((TLPeerChat) message.getToId()).getChatId());
+            }
         } else if (absMessage instanceof TLMessageForwarded) {
-            userId = ((TLMessageForwarded) absMessage).getFromId();
+            TLMessageForwarded messageForwarded = (TLMessageForwarded) absMessage;
+            if(messageForwarded.getToId() instanceof TLPeerUser)
+                return;
+//                absInputPeer = new TLInputPeerContact(messageForwarded.getFromId());
+            else if(messageForwarded.getToId() instanceof TLPeerChat) {
+                if(((TLPeerChat) messageForwarded.getToId()).getChatId() != 240638145)
+                    return;
+                absInputPeer = new TLInputPeerChat(((TLPeerChat) messageForwarded.getToId()).getChatId());
+            }
         } 
 
-//        if (userId != 0)
-//            readHistory(absMessage, userId, 0);
+        if (absInputPeer != null)
+            readHistory(absMessage.getId(), absInputPeer, 0);
 
     }
 
-    private void readHistory(TLAbsMessage absMessage, int userId, int offset) {
-        api.doRpcCall(new TLRequestMessagesReadHistory(new TLInputPeerContact(userId), absMessage.getId(), offset), new RpcCallbackEx<TLAffectedHistory>() {
+    private void readHistory(int messageId, TLAbsInputPeer inputPeer, int offset) {
+        api.doRpcCall(new TLRequestMessagesReadHistory(inputPeer, messageId, offset), new RpcCallbackEx<TLAffectedHistory>() {
             @Override
             public void onConfirmed() {
 
@@ -46,7 +60,7 @@ public class MessageManager {
             @Override
             public void onResult(TLAffectedHistory result) {
                 if(result.getOffset() != 0)
-                    readHistory(absMessage, userId, result.getOffset());
+                    readHistory(messageId, inputPeer, result.getOffset());
             }
 
             @Override

@@ -24,8 +24,8 @@ public class ApiStorage extends TLPersistence<TLStorage> implements AbsApiState 
     public static final String STORAGE_FILE_NAME = "api.bin";
     private static final String TAG = "ApiStorage";
 
-    public ApiStorage() {
-        super(STORAGE_FILE_NAME, TLStorage.class);
+    public ApiStorage(String phoneNumber) {
+        super(phoneNumber, STORAGE_FILE_NAME, TLStorage.class);
 
         if (getObj().getDcInfos().size() == 0) {
             getObj().getDcInfos().add(new TLDcInfo(1, DcInitialConfig.ADDRESS, DcInitialConfig.PORT, 0));

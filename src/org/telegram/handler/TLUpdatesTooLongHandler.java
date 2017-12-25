@@ -2,18 +2,19 @@ package org.telegram.handler;
 
 import org.telegram.ApiState;
 import org.telegram.ApiStorage;
-import org.telegram.api.*;
+import org.telegram.api.TLAbsMessage;
+import org.telegram.api.TLAbsUpdates;
+import org.telegram.api.TLUpdateNewMessage;
+import org.telegram.api.TLUpdatesTooLong;
 import org.telegram.api.engine.RpcCallbackEx;
 import org.telegram.api.engine.TelegramApi;
 import org.telegram.api.requests.TLRequestUpdatesGetDifference;
-import org.telegram.api.requests.TLRequestUpdatesGetState;
 import org.telegram.api.updates.TLAbsDifference;
 import org.telegram.api.updates.TLDifference;
 import org.telegram.api.updates.TLDifferenceSlice;
 import org.telegram.api.updates.TLState;
 import org.telegram.tl.TLVector;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -40,7 +41,8 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
 
     @Override
     public void processUpdates(TLAbsUpdates updates) {
-        ApiState apiState = new ApiState();
+        ApiStorage apiStorage = (ApiStorage) api.getState();
+        ApiState apiState = new ApiState(apiStorage.getObj().getPhone().replaceAll("\\+", ""));
         TLState tlState = apiState.getObj();
         api.doRpcCall(new TLRequestUpdatesGetDifference(tlState.getPts(), tlState.getDate(), tlState.getQts()), new RpcCallbackEx<TLAbsDifference>() {
             @Override
