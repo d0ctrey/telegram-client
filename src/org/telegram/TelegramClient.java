@@ -50,37 +50,34 @@ public class TelegramClient {
     }
 
     public static void main(String[] args) {
-        DefaultAbsApiState apiState;
-        boolean stateLoaded = false;
-        try {
-            apiState = (DefaultAbsApiState) restoreState();
-            stateLoaded = true;
-        } catch (IOException | ClassNotFoundException e) {
-            apiState = new DefaultAbsApiState(false);
-        }
+        ApiStorage apiStorage = new ApiStorage();
+        api = new TelegramApi(apiStorage, new AppInfo(API_ID,
+                "MacBook Pro", "macOS Sierra 10.12", "0.0.1", "en"), new DefaultApiCallback());
 
-        api = new TelegramApi(apiState, new AppInfo(API_ID,
-                "Test Client", "0.0.1", "0.0.1", "en"), new DefaultApiCallback());
-
-        if (!stateLoaded) {
+        if (!apiStorage.isAuthenticated()) {
             TLConfig config = doRpc(new TLRequestHelpGetConfig(), false);
-            apiState.updateSettings(config);
+            apiStorage.updateSettings(config);
             api.resetConnectionInfo();
 
             TLNearestDc tlNearestDc = doRpc(new TLRequestHelpGetNearestDc(), false);
             switchToDc(tlNearestDc.getNearestDc());
 
             TLAuthorization authorization = handleRegistration();
-            api.getState().setAuthenticated(api.getState().getPrimaryDc(), true);
+            apiStorage.doAuth(authorization);
+            apiStorage.setAuthenticated(api.getState().getPrimaryDc(), true);
 
-            TLState tlState = doRpc(new TLRequestUpdatesGetState(), true);
-            apiState.setTlState(tlState);
+        }
+
+        ApiState apiState = new ApiState();
+        if(apiState.getObj().getDate() == 0) {
             try {
-                saveState(apiState);
+                TLState tlState = api.doRpcCall(new TLRequestUpdatesGetState());
+                apiState.updateState(tlState);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+
 
         updatesHandlers.add(new TLUpdatesHandler(api));
         updatesHandlers.add(new TLUpdateShortHandler(api));
@@ -91,35 +88,6 @@ public class TelegramClient {
         for(TLAbsUpdatesHandler updatesHandler : updatesHandlers) {
             if(updatesHandler.canProcess(updates.getClassId()))
                 updatesHandler.processUpdates(updates);
-        }
-    }
-
-    private static void saveState(AbsApiState apiState) throws IOException {
-        FileOutputStream outputStream = null;
-        try {
-            File stateFile = new File(System.getProperty("user.home") + "/.telegram/security", "state.ser");
-            if(!stateFile.exists()) {
-                stateFile.getParentFile().mkdirs();
-                stateFile.createNewFile();
-            }
-            outputStream = new FileOutputStream(stateFile);
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
-            objectOutputStream.writeObject(apiState);
-        } finally {
-            if(outputStream != null)
-                outputStream.close();
-        }
-    }
-
-    private static AbsApiState restoreState() throws IOException, ClassNotFoundException {
-        FileInputStream inputStream = null;
-        try {
-            inputStream = new FileInputStream(System.getProperty("user.home") + "/.telegram/security/state.ser");
-            ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
-            return (AbsApiState) objectInputStream.readObject();
-        } finally {
-            if(inputStream != null)
-                inputStream.close();
         }
     }
 
@@ -138,7 +106,7 @@ public class TelegramClient {
             try {
                 reader.close();
             } catch (IOException e) {
-
+                e.printStackTrace();
             }
         }
 

@@ -1,15 +1,14 @@
 package org.telegram.handler;
 
-import org.telegram.DefaultAbsApiState;
-import org.telegram.api.TLAbsMessage;
-import org.telegram.api.TLAbsUpdates;
-import org.telegram.api.TLUpdateNewMessage;
-import org.telegram.api.TLUpdatesTooLong;
+import org.telegram.ApiState;
+import org.telegram.ApiStorage;
+import org.telegram.api.*;
 import org.telegram.api.engine.RpcCallbackEx;
 import org.telegram.api.engine.TelegramApi;
 import org.telegram.api.requests.TLRequestUpdatesGetDifference;
 import org.telegram.api.requests.TLRequestUpdatesGetState;
 import org.telegram.api.updates.TLAbsDifference;
+import org.telegram.api.updates.TLDifference;
 import org.telegram.api.updates.TLDifferenceSlice;
 import org.telegram.api.updates.TLState;
 import org.telegram.tl.TLVector;
@@ -41,17 +40,8 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
 
     @Override
     public void processUpdates(TLAbsUpdates updates) {
-        DefaultAbsApiState state = (DefaultAbsApiState) api.getState();
-        TLState tlState = state.getTlState();
-        if(tlState == null) {
-            try {
-                tlState = api.doRpcCall(new TLRequestUpdatesGetState());
-            } catch (IOException e) {
-                LOGGER.severe("Failed to get the state from server.");
-                return;
-            }
-        }
-
+        ApiState apiState = new ApiState();
+        TLState tlState = apiState.getObj();
         api.doRpcCall(new TLRequestUpdatesGetDifference(tlState.getPts(), tlState.getDate(), tlState.getQts()), new RpcCallbackEx<TLAbsDifference>() {
             @Override
             public void onConfirmed() {
@@ -60,18 +50,18 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
 
             @Override
             public void onResult(TLAbsDifference result) {
-                // TODO: 12/24/2017 what to do with the result?
+                TLState newState = null;
                 if(result instanceof TLDifferenceSlice) {
-                    ((DefaultAbsApiState) api.getState()).setTlState(((TLDifferenceSlice) result).getIntermediateState());
                     TLVector<TLAbsMessage> newMessages = ((TLDifferenceSlice) result).getNewMessages();
-                    for(TLAbsMessage newMessage : newMessages) {
-                        TLUpdateNewMessage tlUpdateNewMessage = new TLUpdateNewMessage(newMessage, 0);
-                        for (TLAbsUpdateHandler updateHandler : updateHandlers) {
-                            if(updateHandler.canProcess(tlUpdateNewMessage.getClassId()))
-                                updateHandler.processUpdate(tlUpdateNewMessage);
-                        }
-                    }
+                    processNewMessages(newMessages);
+                    newState = ((TLDifferenceSlice) result).getIntermediateState();
+                } else if(result instanceof TLDifference) {
+                    TLVector<TLAbsMessage> newMessages = ((TLDifference) result).getNewMessages();
+                    processNewMessages(newMessages);
+                    newState = ((TLDifference) result).getState();
                 }
+
+                apiState.updateState(newState);
             }
 
             @Override
@@ -80,5 +70,15 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
             }
         });
 
+    }
+
+    private void processNewMessages(TLVector<TLAbsMessage> newMessages) {
+        for(TLAbsMessage newMessage : newMessages) {
+            TLUpdateNewMessage tlUpdateNewMessage = new TLUpdateNewMessage(newMessage, 0);
+            for (TLAbsUpdateHandler updateHandler : updateHandlers) {
+                if(updateHandler.canProcess(tlUpdateNewMessage.getClassId()))
+                    updateHandler.processUpdate(tlUpdateNewMessage);
+            }
+        }
     }
 }
