@@ -1,12 +1,10 @@
 package org.telegram;
 
-import org.telegram.api.TLAbsUpdates;
-import org.telegram.api.TLConfig;
-import org.telegram.api.TLInputPeerNotifyEventsAll;
-import org.telegram.api.TLNearestDc;
+import org.telegram.api.*;
 import org.telegram.api.auth.TLAuthorization;
 import org.telegram.api.auth.TLSentCode;
 import org.telegram.api.engine.*;
+import org.telegram.api.messages.TLAbsDialogs;
 import org.telegram.api.requests.*;
 import org.telegram.api.updates.TLAbsDifference;
 import org.telegram.api.updates.TLState;
@@ -50,7 +48,7 @@ public class TelegramClient {
 
         @Override
         public void onUpdate(TLAbsUpdates updates) {
-            processUpdates(updates);
+//            processUpdates(updates);
         }
     }
 
@@ -83,31 +81,38 @@ public class TelegramClient {
             }
         }
 
-
-        updatesHandlers.add(new TLUpdatesHandler(api));
-        updatesHandlers.add(new TLUpdateShortHandler(api));
-        updatesHandlers.add(new TLUpdatesTooLongHandler(api));
-
-        executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(() -> api.doRpcCall(new TLRequestAccountGetNotifySettings(), new RpcCallbackEx<T>() {
+        String hash;
+        if("https://telegram.me/joinchat/Cs1ppj6BBdQNe9LTcafLqg".startsWith("https://telegram.me/joinchat/"))
+            hash = "https://telegram.me/joinchat/Cs1ppj6BBdQNe9LTcafLqg".substring("https://telegram.me/joinchat/".length() - 1);
+        doRpc(new TLRequestUsersGetFullUser(new TLInputUserForeign());
+        api.doRpcCall(new TLRequestMessagesGetDialogs(0, Integer.MAX_VALUE, 100), new RpcCallbackEx<TLAbsDialogs>() {
             @Override
             public void onConfirmed() {
 
             }
 
             @Override
-            public void onResult(T result) {
-
+            public void onResult(TLAbsDialogs result) {
+                System.out.println(result);
             }
 
             @Override
             public void onError(int errorCode, String message) {
 
             }
-        }), 5, 5, TimeUnit.SECONDS);
+        });
+
+        /*updatesHandlers.add(new TLUpdatesHandler(api));
+        updatesHandlers.add(new TLUpdateShortHandler(api));
+        updatesHandlers.add(new TLUpdatesTooLongHandler(api));
+        // check for updates since restart
+        processUpdates(new TLUpdatesTooLong());
+
+        executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.scheduleAtFixedRate(() -> processUpdates(new TLUpdatesTooLong()), 5, 30, TimeUnit.SECONDS);*/
     }
 
-    private static void processUpdates(TLAbsUpdates updates) {
+    private synchronized static void processUpdates(TLAbsUpdates updates) {
         for (TLAbsUpdatesHandler updatesHandler : updatesHandlers) {
             if (updatesHandler.canProcess(updates.getClassId()))
                 updatesHandler.processUpdates(updates);

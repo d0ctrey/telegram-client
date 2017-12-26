@@ -45,6 +45,7 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
         ApiState apiState = new ApiState(apiStorage.getObj().getPhone().replaceAll("\\+", ""));
         TLState tlState = apiState.getObj();
         api.doRpcCall(new TLRequestUpdatesGetDifference(tlState.getPts(), tlState.getDate(), tlState.getQts()), new RpcCallbackEx<TLAbsDifference>() {
+
             @Override
             public void onConfirmed() {
 
@@ -63,7 +64,8 @@ public class TLUpdatesTooLongHandler implements TLAbsUpdatesHandler {
                     newState = ((TLDifference) result).getState();
                 }
 
-                apiState.updateState(newState);
+                if(newState != null)
+                    apiState.updateState(newState);
             }
 
             @Override
