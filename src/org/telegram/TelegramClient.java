@@ -84,7 +84,7 @@ public class TelegramClient {
         String hash;
         if("https://telegram.me/joinchat/Cs1ppj6BBdQNe9LTcafLqg".startsWith("https://telegram.me/joinchat/"))
             hash = "https://telegram.me/joinchat/Cs1ppj6BBdQNe9LTcafLqg".substring("https://telegram.me/joinchat/".length() - 1);
-        doRpc(new TLRequestUsersGetFullUser(new TLInputUserForeign());
+//        doRpc(new TLRequestUsersGetFullUser(new TLInputUserForeign());
         api.doRpcCall(new TLRequestMessagesGetDialogs(0, Integer.MAX_VALUE, 100), new RpcCallbackEx<TLAbsDialogs>() {
             @Override
             public void onConfirmed() {
